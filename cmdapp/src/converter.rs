@@ -10,11 +10,11 @@ use visioncortex::{Color, ColorImage, ColorName};
 pub fn convert_image_to_svg(config: Config) -> Result<(), String> {
     let config = config.into_converter_config();
     match config.color_mode {
-        ColorMode::Color => match color_image_to_svg(config, None, false) {
+        ColorMode::Color => match color_image_to_svg(config, None, false, true) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         },
-        ColorMode::Binary => match binary_image_to_svg(config, None, false) {
+        ColorMode::Binary => match binary_image_to_svg(config, None, false, true) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         },
@@ -27,8 +27,10 @@ pub fn convert_image_to_svg_in_mem(
 ) -> Result<String, String> {
     let config = config.into_converter_config();
     match config.color_mode {
-        ColorMode::Color => Ok(color_image_to_svg(config, Some(input_img), true)?.unwrap()),
-        ColorMode::Binary => Ok(binary_image_to_svg(config, Some(input_img), true)?.unwrap()),
+        ColorMode::Color => Ok(color_image_to_svg(config, Some(input_img), true, false)?.unwrap()),
+        ColorMode::Binary => {
+            Ok(binary_image_to_svg(config, Some(input_img), true, false)?.unwrap())
+        }
     }
 }
 
@@ -36,6 +38,7 @@ fn color_image_to_svg(
     config: ConverterConfig,
     input_img: Option<ColorImage>,
     return_svg: bool,
+    save_svg: bool,
 ) -> Result<Option<String>, String> {
     let (img, width, height);
 
@@ -115,7 +118,10 @@ fn color_image_to_svg(
         true => Some(format!("{}", &svg)),
         false => None,
     };
-    write_svg(svg, config.output_path);
+
+    if save_svg {
+        write_svg(svg, config.output_path);
+    }
 
     Ok(svg_string)
 }
@@ -124,6 +130,7 @@ fn binary_image_to_svg(
     config: ConverterConfig,
     input_img: Option<ColorImage>,
     return_svg: bool,
+    save_svg: bool,
 ) -> Result<Option<String>, String> {
     let (img, width, height);
 
@@ -164,7 +171,10 @@ fn binary_image_to_svg(
         true => Some(format!("{}", &svg)),
         false => None,
     };
-    write_svg(svg, config.output_path);
+
+    if save_svg {
+        write_svg(svg, config.output_path);
+    }
 
     Ok(svg_string)
 }
