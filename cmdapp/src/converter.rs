@@ -1,42 +1,73 @@
 use std::path::PathBuf;
 use std::{fs::File, io::Write};
 
-use visioncortex::{Color, ColorImage, ColorName};
-use visioncortex::color_clusters::{Runner, RunnerConfig, HIERARCHICAL_MAX};
-use super::config::{Config, ColorMode, Hierarchical, ConverterConfig};
+use super::config::{ColorMode, Config, ConverterConfig, Hierarchical};
 use super::svg::SvgFile;
+use visioncortex::color_clusters::{Runner, RunnerConfig, HIERARCHICAL_MAX};
+use visioncortex::{Color, ColorImage, ColorName};
 
 /// Convert an image file into svg file
 pub fn convert_image_to_svg(config: Config) -> Result<(), String> {
     let config = config.into_converter_config();
     match config.color_mode {
-        ColorMode::Color => color_image_to_svg(config),
-        ColorMode::Binary => binary_image_to_svg(config),
+        ColorMode::Color => match color_image_to_svg(config, None, false) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        },
+        ColorMode::Binary => match binary_image_to_svg(config, None, false) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        },
     }
 }
 
-fn color_image_to_svg(config: ConverterConfig) -> Result<(), String> {
+pub fn convert_image_to_svg_in_mem(
+    config: Config,
+    input_img: ColorImage,
+) -> Result<String, String> {
+    let config = config.into_converter_config();
+    match config.color_mode {
+        ColorMode::Color => Ok(color_image_to_svg(config, Some(input_img), true)?.unwrap()),
+        ColorMode::Binary => Ok(binary_image_to_svg(config, Some(input_img), true)?.unwrap()),
+    }
+}
+
+fn color_image_to_svg(
+    config: ConverterConfig,
+    input_img: Option<ColorImage>,
+    return_svg: bool,
+) -> Result<Option<String>, String> {
     let (img, width, height);
-    match read_image(config.input_path) {
-        Ok(values) => {
-            img = values.0;
-            width = values.1;
-            height = values.2;
+
+    match input_img {
+        Some(v) => {
+            img = v;
+            (width, height) = (img.width, img.height);
+        }
+        None => match read_image(config.input_path) {
+            Ok(values) => {
+                img = values.0;
+                width = values.1;
+                height = values.2;
+            }
+            Err(msg) => return Err(msg),
         },
-        Err(msg) => return Err(msg),
     }
 
-    let runner = Runner::new(RunnerConfig {
-        diagonal: config.layer_difference == 0,
-        hierarchical: HIERARCHICAL_MAX,
-        batch_size: 25600,
-        good_min_area: config.filter_speckle_area,
-        good_max_area: (width * height),
-        is_same_color_a: config.color_precision_loss,
-        is_same_color_b: 1,
-        deepen_diff: config.layer_difference,
-        hollow_neighbours: 1,
-    }, img);
+    let runner = Runner::new(
+        RunnerConfig {
+            diagonal: config.layer_difference == 0,
+            hierarchical: HIERARCHICAL_MAX,
+            batch_size: 25600,
+            good_min_area: config.filter_speckle_area,
+            good_max_area: (width * height),
+            is_same_color_a: config.color_precision_loss,
+            is_same_color_b: 1,
+            deepen_diff: config.layer_difference,
+            hollow_neighbours: 1,
+        },
+        img,
+    );
 
     let mut clusters = runner.run();
 
@@ -45,19 +76,22 @@ fn color_image_to_svg(config: ConverterConfig) -> Result<(), String> {
         Hierarchical::Cutout => {
             let view = clusters.view();
             let image = view.to_color_image();
-            let runner = Runner::new(RunnerConfig {
-                diagonal: false,
-                hierarchical: 64,
-                batch_size: 25600,
-                good_min_area: 0,
-                good_max_area: (image.width * image.height) as usize,
-                is_same_color_a: 0,
-                is_same_color_b: 1,
-                deepen_diff: 0,
-                hollow_neighbours: 0,
-            }, image);
+            let runner = Runner::new(
+                RunnerConfig {
+                    diagonal: false,
+                    hierarchical: 64,
+                    batch_size: 25600,
+                    good_min_area: 0,
+                    good_max_area: (image.width * image.height) as usize,
+                    is_same_color_a: 0,
+                    is_same_color_b: 1,
+                    deepen_diff: 0,
+                    hollow_neighbours: 0,
+                },
+                image,
+            );
             clusters = runner.run();
-        },
+        }
     }
 
     let view = clusters.view();
@@ -72,27 +106,43 @@ fn color_image_to_svg(config: ConverterConfig) -> Result<(), String> {
             config.corner_threshold,
             config.length_threshold,
             config.max_iterations,
-            config.splice_threshold
+            config.splice_threshold,
         );
         svg.add_path(paths, cluster.residue_color());
     }
 
-    write_svg(svg, config.output_path)
+    let svg_string = match return_svg {
+        true => Some(format!("{}", &svg)),
+        false => None,
+    };
+    write_svg(svg, config.output_path);
+
+    Ok(svg_string)
 }
 
-fn binary_image_to_svg(config: ConverterConfig) -> Result<(), String> {
-
+fn binary_image_to_svg(
+    config: ConverterConfig,
+    input_img: Option<ColorImage>,
+    return_svg: bool,
+) -> Result<Option<String>, String> {
     let (img, width, height);
-    match read_image(config.input_path) {
-        Ok(values) => {
-            img = values.0;
-            width = values.1;
-            height = values.2;
-        },
-        Err(msg) => return Err(msg),
-    }
-    let img = img.to_binary_image(|x| x.r < 128);
 
+    match input_img {
+        Some(v) => {
+            img = v;
+            (width, height) = (img.width, img.height);
+        }
+        None => match read_image(config.input_path) {
+            Ok(values) => {
+                img = values.0;
+                width = values.1;
+                height = values.2;
+            }
+            Err(msg) => return Err(msg),
+        },
+    }
+
+    let img = img.to_binary_image(|x| x.r < 128);
     let clusters = img.to_clusters(false);
 
     let mut svg = SvgFile::new(width, height, config.path_precision);
@@ -110,7 +160,13 @@ fn binary_image_to_svg(config: ConverterConfig) -> Result<(), String> {
         }
     }
 
-    write_svg(svg, config.output_path)
+    let svg_string = match return_svg {
+        true => Some(format!("{}", &svg)),
+        false => None,
+    };
+    write_svg(svg, config.output_path);
+
+    Ok(svg_string)
 }
 
 fn read_image(input_path: PathBuf) -> Result<(ColorImage, usize, usize), String> {
@@ -121,7 +177,11 @@ fn read_image(input_path: PathBuf) -> Result<(ColorImage, usize, usize), String>
     };
 
     let (width, height) = (img.width() as usize, img.height() as usize);
-    let img = ColorImage {pixels: img.as_raw().to_vec(), width, height};
+    let img = ColorImage {
+        pixels: img.as_raw().to_vec(),
+        width,
+        height,
+    };
 
     Ok((img, width, height))
 }

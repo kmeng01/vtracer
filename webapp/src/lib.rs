@@ -12,9 +12,9 @@
 )]
 use wasm_bindgen::prelude::*;
 
-mod conversion;
 mod canvas;
 mod common;
+mod conversion;
 mod svg;
 mod utils;
 

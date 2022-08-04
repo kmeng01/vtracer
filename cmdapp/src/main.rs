@@ -1,4 +1,4 @@
-use vtracer::{Config, convert_image_to_svg};
+use vtracer::{convert_image_to_svg, Config};
 
 fn main() {
     let config = Config::from_args();
@@ -6,7 +6,7 @@ fn main() {
     match result {
         Ok(()) => {
             println!("Conversion successful.");
-        },
+        }
         Err(msg) => {
             panic!("Conversion failed with error message: {}", msg);
         }

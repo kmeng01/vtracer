@@ -1,6 +1,6 @@
-use wasm_bindgen::{JsCast};
+use visioncortex::ColorImage;
+use wasm_bindgen::JsCast;
 use web_sys::{console, CanvasRenderingContext2d, HtmlCanvasElement};
-use visioncortex::{ColorImage};
 
 use super::common::document;
 
@@ -24,10 +24,7 @@ impl Canvas {
             .dyn_into::<CanvasRenderingContext2d>()
             .unwrap();
 
-        Canvas {
-            html_canvas,
-            cctx,
-        }
+        Canvas { html_canvas, cctx }
     }
 
     pub fn width(&self) -> usize {
@@ -46,7 +43,13 @@ impl Canvas {
         image.data().to_vec()
     }
 
-    pub fn get_image_data_as_color_image(&self, x: u32, y: u32, width: u32, height: u32) -> ColorImage {
+    pub fn get_image_data_as_color_image(
+        &self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> ColorImage {
         ColorImage {
             pixels: self.get_image_data(x, y, width, height),
             width: width as usize,

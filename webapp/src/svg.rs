@@ -1,6 +1,6 @@
-use web_sys::Element;
-use visioncortex::{Color, CompoundPath, PointF64};
 use super::common::document;
+use visioncortex::{Color, CompoundPath, PointF64};
+use web_sys::Element;
 
 pub struct Svg {
     element: Element,

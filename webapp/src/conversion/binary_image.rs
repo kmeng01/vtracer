@@ -1,11 +1,11 @@
-use wasm_bindgen::prelude::*;
 use visioncortex::{clusters::Clusters, Color, ColorName, PathSimplifyMode};
+use wasm_bindgen::prelude::*;
 
-use crate::{canvas::*};
+use crate::canvas::*;
 use crate::svg::*;
 
-use serde::Deserialize;
 use super::util;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct BinaryImageConverterParams {
@@ -55,7 +55,9 @@ impl BinaryImageConverter {
     pub fn init(&mut self) {
         let width = self.canvas.width() as u32;
         let height = self.canvas.height() as u32;
-        let image = self.canvas.get_image_data_as_color_image(0, 0, width, height);
+        let image = self
+            .canvas
+            .get_image_data_as_color_image(0, 0, width, height);
         let binary_image = image.to_binary_image(|x| x.r < 128);
         self.clusters = binary_image.to_clusters(false);
         self.canvas.log(&format!(
@@ -75,14 +77,11 @@ impl BinaryImageConverter {
                     self.params.corner_threshold,
                     self.params.length_threshold,
                     self.params.max_iterations,
-                    self.params.splice_threshold
+                    self.params.splice_threshold,
                 );
                 let color = Color::color(&ColorName::White);
-                self.svg.prepend_path(
-                    &paths,
-                    &color,
-                    Some(self.params.path_precision),
-                );
+                self.svg
+                    .prepend_path(&paths, &color, Some(self.params.path_precision));
             }
             self.counter += 1;
             false
